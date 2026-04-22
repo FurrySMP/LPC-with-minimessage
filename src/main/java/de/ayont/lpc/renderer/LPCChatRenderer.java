@@ -59,11 +59,13 @@ public class LPCChatRenderer implements ChatRenderer {
         final CachedMetaData metaData = this.luckPerms.getPlayerAdapter(Player.class).getMetaData(source);
         final String group = Objects.requireNonNull(metaData.getPrimaryGroup(), "Primary group cannot be null");
 
-        boolean hasPermission = source.hasPermission("lpc.chatcolor");
-
         String plainMessage = PlainTextComponentSerializer.plainText().serialize(message);
 
-        if (hasPermission) {
+        if (!source.hasPermission("lpc.minimessage")) {
+            plainMessage = miniMessage.escapeTags(plainMessage);
+        }
+
+        if (source.hasPermission("lpc.chatcolor")) {
             for (Map.Entry<String, String> entry : legacyToMiniMessageColors.entrySet()) {
                 plainMessage = plainMessage.replace(entry.getKey(), entry.getValue());
             }
@@ -91,6 +93,10 @@ public class LPCChatRenderer implements ChatRenderer {
             format = plugin.getConfig().getString("chat-format");
         }
 
+        if (format == null) {
+            format = "<red>Chat format not found!</red>";
+        }
+
         format = format.replace("{prefix}", metaData.getPrefix() != null ? metaData.getPrefix() : "")
                 .replace("{suffix}", metaData.getSuffix() != null ? metaData.getSuffix() : "")
                 .replace("{prefixes}", String.join(" ", metaData.getPrefixes().values()))
@@ -101,17 +107,14 @@ public class LPCChatRenderer implements ChatRenderer {
                 .replace("{username-color}", metaData.getMetaValue("username-color") != null ? Objects.requireNonNull(metaData.getMetaValue("username-color")) : "")
                 .replace("{message-color}", metaData.getMetaValue("message-color") != null ? Objects.requireNonNull(metaData.getMetaValue("message-color")) : "");
 
-        if (!hasPermission) {
-            for (Map.Entry<String, String> entry : legacyToMiniMessageColors.entrySet()) {
-                plainMessage = plainMessage.replace(entry.getValue(), entry.getKey());
+        if (hasPapi) {
+            format = PlaceholderAPI.setPlaceholders(source, format);
+            if (source.hasPermission("lpc.papi")) {
+                plainMessage = PlaceholderAPI.setPlaceholders(source, plainMessage);
             }
         }
 
         format = format.replace("{message}", plainMessage);
-
-        if (hasPapi) {
-            format = PlaceholderAPI.setPlaceholders(source, format);
-        }
 
         return miniMessage.deserialize(format);
     }
